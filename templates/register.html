@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Đăng ký – Netflix Recommender</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --red: #e50914;
+      --red-dark: #b20710;
+      --bg: #0a0a0a;
+      --glass: rgba(15,15,15,0.85);
+      --border: rgba(255,255,255,0.08);
+      --text: #f0f0f0;
+      --muted: #888;
+    }
+
+    html, body {
+      min-height: 100%;
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .bg-layer {
+      position: fixed; inset: 0; z-index: 0;
+      background:
+        radial-gradient(ellipse 70% 50% at 20% 20%, rgba(229,9,20,0.14) 0%, transparent 55%),
+        radial-gradient(ellipse 60% 60% at 85% 80%, rgba(229,9,20,0.10) 0%, transparent 50%),
+        linear-gradient(160deg, #0a0a0a, #111 50%, #0a0a0a);
+    }
+    .bg-layer::after {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      opacity: 0.4;
+      pointer-events: none;
+    }
+
+    /* Progress steps */
+    .steps-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      margin-bottom: 36px;
+      animation: fadeDown 0.5s 0.3s ease both;
+      opacity: 0;
+    }
+    .step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    .step-dot {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      transition: all 0.3s;
+    }
+    .step.active .step-dot {
+      border-color: var(--red);
+      background: var(--red);
+      color: white;
+      box-shadow: 0 0 16px rgba(229,9,20,0.5);
+    }
+    .step-label {
+      font-size: 10px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .step.active .step-label { color: white; }
+    .step-line {
+      width: 60px;
+      height: 1px;
+      background: var(--border);
+      margin-bottom: 18px;
+    }
+
+    /* Film strips */
+    .film-strip {
+      position: fixed;
+      top: 0; bottom: 0;
+      width: 48px;
+      display: flex;
+      flex-direction: column;
+      opacity: 0.05;
+      pointer-events: none;
+    }
+    .film-strip.left { left: 0; }
+    .film-strip.right { right: 0; }
+    .film-hole {
+      flex: 1;
+      border-top: 2px solid white;
+      border-bottom: 2px solid white;
+      border-left: 8px solid white;
+      border-right: 8px solid white;
+      min-height: 32px;
+    }
+
+    .page {
+      position: relative; z-index: 10;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+    }
+
+    .logo {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 36px;
+      letter-spacing: 4px;
+      color: var(--red);
+      margin-bottom: 8px;
+      text-shadow: 0 0 40px rgba(229,9,20,0.6);
+      animation: fadeDown 0.5s ease both;
+    }
+    .logo-sub {
+      font-size: 11px;
+      letter-spacing: 6px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 40px;
+      animation: fadeDown 0.5s 0.1s ease both;
+    }
+
+    .auth-card {
+      width: 100%;
+      max-width: 440px;
+      background: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 44px 48px 40px;
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      box-shadow:
+        0 0 0 1px rgba(229,9,20,0.06),
+        0 32px 80px rgba(0,0,0,0.8),
+        0 0 100px rgba(229,9,20,0.05);
+      animation: fadeUp 0.6s 0.2s ease both;
+      opacity: 0;
+    }
+
+    .auth-card h2 {
+      font-size: 26px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .auth-card .subtitle {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 28px;
+    }
+
+    .error-banner {
+      background: rgba(229,9,20,0.12);
+      border: 1px solid rgba(229,9,20,0.3);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 13px;
+      color: #ff6b6b;
+      margin-bottom: 20px;
+    }
+
+    .field-group {
+      position: relative;
+      margin-bottom: 16px;
+    }
+    .field-group label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+      transition: color 0.2s;
+    }
+    .field-group:focus-within label { color: var(--red); }
+
+    .field-group input {
+      width: 100%;
+      height: 50px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: white;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      padding: 0 16px;
+      outline: none;
+      transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+    }
+    .field-group input::placeholder { color: #555; }
+    .field-group input:focus {
+      border-color: var(--red);
+      background: rgba(229,9,20,0.05);
+      box-shadow: 0 0 0 3px rgba(229,9,20,0.1);
+    }
+
+    /* Password strength bar */
+    .strength-bar {
+      height: 3px;
+      border-radius: 2px;
+      background: var(--border);
+      margin-top: 8px;
+      overflow: hidden;
+    }
+    .strength-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: 2px;
+      transition: width 0.3s, background 0.3s;
+    }
+
+    /* Field hint */
+    .field-hint {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    .btn-submit {
+      width: 100%;
+      height: 52px;
+      background: var(--red);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      margin-top: 10px;
+      position: relative;
+      overflow: hidden;
+      transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+    }
+    .btn-submit::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 60%);
+    }
+    .btn-submit:hover { background: var(--red-dark); box-shadow: 0 8px 32px rgba(229,9,20,0.4); }
+    .btn-submit:active { transform: scale(0.98); }
+
+    /* Terms */
+    .terms-note {
+      font-size: 11px;
+      color: #555;
+      text-align: center;
+      margin-top: 16px;
+      line-height: 1.6;
+    }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 24px 0 4px;
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: 1px;
+    }
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .auth-footer {
+      margin-top: 24px;
+      font-size: 13px;
+      color: var(--muted);
+      text-align: center;
+    }
+    .auth-footer a {
+      color: white;
+      text-decoration: none;
+      font-weight: 500;
+      border-bottom: 1px solid rgba(255,255,255,0.2);
+      padding-bottom: 1px;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .auth-footer a:hover { color: var(--red); border-color: var(--red); }
+
+    @keyframes fadeDown {
+      from { opacity: 0; transform: translateY(-16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-layer"></div>
+  <div class="film-strip left">
+    <div class="film-hole"></div><div class="film-hole"></div><div class="film-hole"></div>
+    <div class="film-hole"></div><div class="film-hole"></div><div class="film-hole"></div>
+    <div class="film-hole"></div><div class="film-hole"></div><div class="film-hole"></div>
+    <div class="film-hole"></div><div class="film-hole"></div><div class="film-hole"></div>
+  </div>
+  <div class="film-strip right">
+    <div class="film-hole"></div><div class="film-hole"></div><div class="film-hole"></div>
+    <div class="film-hole"></div><div class="film-hole"></div><div class="film-hole"></div>
+    <div class="film-hole"></div><div class="film-hole"></div><div class="film-hole"></div>
+    <div class="film-hole"></div><div class="film-hole"></div><div class="film-hole"></div>
+  </div>
+
+  <div class="page">
+    <div class="logo">🎬 Netflix Recommender</div>
+    <div class="logo-sub">Discover · Watch · Enjoy</div>
+
+    <!-- Progress -->
+    <div class="steps-bar">
+      <div class="step active">
+        <div class="step-dot">1</div>
+        <div class="step-label">Tài khoản</div>
+      </div>
+      <div class="step-line"></div>
+      <div class="step">
+        <div class="step-dot">2</div>
+        <div class="step-label">Sở thích</div>
+      </div>
+      <div class="step-line"></div>
+      <div class="step">
+        <div class="step-dot">3</div>
+        <div class="step-label">Khám phá</div>
+      </div>
+    </div>
+
+    <div class="auth-card">
+      <h2>Tạo tài khoản</h2>
+      <p class="subtitle">Chỉ mất 30 giây để bắt đầu</p>
+
+      <!-- {% if error %} -->
+      <!-- <div class="error-banner">⚠ {{ error }}</div> -->
+      <!-- {% endif %} -->
+
+      <form method="POST">
+        <div class="field-group">
+          <label>Tên đăng nhập</label>
+          <input type="text" name="username" placeholder="Chọn username..." required>
+        </div>
+        <div class="field-group">
+          <label>Địa chỉ email</label>
+          <input type="email" name="email" placeholder="you@example.com" required>
+        </div>
+        <div class="field-group">
+          <label>Mật khẩu</label>
+          <input type="password" name="password" id="passwordInput" placeholder="Tối thiểu 6 ký tự" required minlength="6"
+                 oninput="updateStrength(this.value)">
+          <div class="strength-bar">
+            <div class="strength-fill" id="strengthFill"></div>
+          </div>
+          <div class="field-hint" id="strengthLabel">Nhập mật khẩu để kiểm tra độ mạnh</div>
+        </div>
+        <button type="submit" class="btn-submit">Tạo tài khoản →</button>
+      </form>
+
+      <p class="terms-note">Bằng cách đăng ký, bạn đồng ý với Điều khoản dịch vụ và Chính sách bảo mật của chúng tôi.</p>
+
+      <div class="divider">ĐÃ CÓ TÀI KHOẢN?</div>
+      <div class="auth-footer">
+        <a href="{{ url_for('login') }}">Đăng nhập ngay →</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function updateStrength(val) {
+      var fill = document.getElementById('strengthFill');
+      var label = document.getElementById('strengthLabel');
+      var score = 0;
+      if (val.length >= 6) score++;
+      if (val.length >= 10) score++;
+      if (/[A-Z]/.test(val)) score++;
+      if (/[0-9]/.test(val)) score++;
+      if (/[^A-Za-z0-9]/.test(val)) score++;
+
+      var pct = (score / 5) * 100;
+      var color = score <= 1 ? '#e50914' : score <= 3 ? '#f39c12' : '#27ae60';
+      var text = score <= 1 ? 'Yếu' : score <= 3 ? 'Trung bình' : 'Mạnh';
+      fill.style.width = pct + '%';
+      fill.style.background = color;
+      label.textContent = val.length ? 'Độ mạnh: ' + text : 'Nhập mật khẩu để kiểm tra độ mạnh';
+      label.style.color = val.length ? color : '';
+    }
+  </script>
+</body>
+</html>

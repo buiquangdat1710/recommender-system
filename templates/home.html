@@ -4,73 +4,724 @@
   <title>Netflix Recommender System</title>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-
-  <!-- Google Fonts -->
-  <link href="https://fonts.googleapis.com/css?family=IBM+Plex+Sans&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap" rel="stylesheet">
-
-  <!-- Font Awesome -->
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 
-  <!-- Bootstrap -->
-  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+  <style>
+    :root {
+      --red: #e50914;
+      --red-dark: #b0060f;
+      --red-glow: rgba(229, 9, 20, 0.4);
+      --bg: #080808;
+      --surface: #141414;
+      --surface2: #1a1a1a;
+      --surface3: #222;
+      --border: rgba(255,255,255,0.08);
+      --text: #fff;
+      --text-muted: #999;
+      --text-dim: #555;
+    }
 
-  <!-- Auto Complete -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tarekraafat/autocomplete.js@7.2.0/dist/css/autoComplete.min.css">
-  <link rel= "stylesheet" type= "text/css" href= "{{ url_for('static',filename='style.css') }}">
-  <script type="text/javascript">
-    var films = {{suggestions|tojson}};
-  </script>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ANIMATED BG */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 90% 60% at 5% 10%, rgba(229,9,20,0.07) 0%, transparent 55%),
+        radial-gradient(ellipse 70% 50% at 95% 85%, rgba(229,9,20,0.05) 0%, transparent 55%),
+        radial-gradient(ellipse 50% 40% at 50% 50%, rgba(229,9,20,0.02) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* NAVBAR */
+    .navbar-custom {
+      position: sticky;
+      top: 0;
+      z-index: 999;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 48px;
+      height: 68px;
+      background: linear-gradient(180deg, rgba(0,0,0,0.98) 0%, rgba(8,8,8,0.88) 100%);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .navbar-brand-txt {
+      font-family: 'Bebas Neue', sans-serif;
+      color: var(--red);
+      font-size: 30px;
+      letter-spacing: 3px;
+      text-shadow: 0 0 40px var(--red-glow), 0 0 80px rgba(229,9,20,0.2);
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .nav-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 7px 16px;
+      border-radius: 8px;
+      transition: all .2s;
+    }
+    .nav-links a:hover {
+      color: var(--text);
+      background: var(--surface2);
+    }
+
+    .username-badge {
+      background: linear-gradient(135deg, var(--red), var(--red-dark));
+      color: white;
+      border-radius: 8px;
+      padding: 7px 18px;
+      font-size: 13px;
+      font-weight: 700;
+      box-shadow: 0 2px 16px var(--red-glow);
+    }
+
+    /* SECTION TITLE */
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--text);
+      font-size: 18px;
+      font-weight: 700;
+      margin: 40px 48px 18px;
+    }
+
+    .section-title::before {
+      content: '';
+      display: block;
+      width: 4px;
+      height: 24px;
+      background: linear-gradient(180deg, var(--red), var(--red-dark));
+      border-radius: 2px;
+      flex-shrink: 0;
+      box-shadow: 0 0 10px var(--red-glow);
+    }
+
+    .badge-cold {
+      background: linear-gradient(135deg, #f39c12, #e67e22);
+      color: #000;
+      padding: 3px 12px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .badge-personal {
+      background: linear-gradient(135deg, #27ae60, #1e8449);
+      color: #fff;
+      padding: 3px 12px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    /* FEATURED ROW */
+    .featured-row {
+      display: flex;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      gap: 12px;
+      padding: 4px 48px 28px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--red) var(--surface2);
+    }
+    .featured-row::-webkit-scrollbar { height: 3px; }
+    .featured-row::-webkit-scrollbar-track { background: var(--surface2); }
+    .featured-row::-webkit-scrollbar-thumb { background: var(--red); border-radius: 2px; }
+
+    /* FEATURED CARD */
+    .featured-card {
+      flex: 0 0 160px;
+      background: var(--surface);
+      border-radius: 10px;
+      overflow: visible;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: transform .3s cubic-bezier(.34,1.56,.64,1), box-shadow .3s ease, border-color .3s ease;
+      position: relative;
+    }
+
+    .fc-img-wrap {
+      position: relative;
+      overflow: hidden;
+      border-radius: 10px;
+    }
+
+    .featured-card:hover {
+      transform: translateY(-8px) scale(1.04);
+      box-shadow: 0 20px 50px rgba(0,0,0,0.8), 0 0 0 1.5px var(--red), 0 0 30px var(--red-glow);
+      z-index: 10;
+    }
+
+    .featured-card .play-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.9) 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity .25s;
+      border-radius: 10px;
+    }
+
+    .featured-card:hover .play-overlay { opacity: 1; }
+
+    .play-btn-circle {
+      width: 48px;
+      height: 48px;
+      background: rgba(229,9,20,0.92);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 20px rgba(229,9,20,0.6);
+      backdrop-filter: blur(4px);
+    }
+    .play-btn-circle svg { width: 18px; height: 18px; fill: white; margin-left: 3px; }
+
+    .fc-poster {
+      width: 160px;
+      height: 240px;
+      object-fit: cover;
+      display: block;
+      border-radius: 10px;
+    }
+
+    .fc-placeholder {
+      width: 160px;
+      height: 240px;
+      background: linear-gradient(135deg, #1c1c1c, #282828, #1c1c1c);
+      background-size: 200% 200%;
+      animation: shimmer 2.5s ease infinite;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #333;
+      font-size: 40px;
+      border-radius: 10px;
+    }
+
+    @keyframes shimmer {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    .fc-title-static {
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 9px 6px 2px;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: color .2s;
+    }
+    .featured-card:hover .fc-title-static { color: var(--text); }
+
+    /* ─── SEARCH SECTION ─── */
+    .search-section {
+      padding: 60px 48px 36px;
+      text-align: center;
+      position: relative;
+      z-index: 10;
+    }
+
+    .search-headline {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 52px;
+      letter-spacing: 4px;
+      color: var(--text);
+      margin-bottom: 10px;
+      text-shadow: 0 2px 20px rgba(0,0,0,0.5);
+    }
+
+    .search-headline span { 
+      color: var(--red);
+      text-shadow: 0 0 30px var(--red-glow);
+    }
+
+    .search-sub {
+      color: var(--text-muted);
+      font-size: 15px;
+      margin-bottom: 32px;
+      font-weight: 300;
+    }
+
+    /* SEARCH WRAPPER - KEY FIX: position relative for dropdown */
+    .search-wrapper {
+      position: relative;
+      display: inline-block;
+      width: 60%;
+      min-width: 320px;
+      max-width: 620px;
+    }
+
+    .search-icon-left {
+      position: absolute;
+      left: 18px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-dim);
+      font-size: 16px;
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    #autoComplete {
+      width: 100% !important;
+      background: rgba(26,26,26,0.95) !important;
+      border: 1.5px solid rgba(255,255,255,0.12) !important;
+      border-radius: 12px !important;
+      color: var(--text) !important;
+      height: 56px !important;
+      font-size: 15px !important;
+      font-family: 'Outfit', sans-serif !important;
+      font-weight: 400 !important;
+      padding-left: 50px !important;
+      padding-right: 20px !important;
+      transition: border-color .25s, box-shadow .25s;
+      backdrop-filter: blur(10px);
+    }
+
+    #autoComplete:focus {
+      border-color: var(--red) !important;
+      box-shadow: 0 0 0 3px rgba(229,9,20,0.2), 0 8px 30px rgba(0,0,0,0.5) !important;
+      outline: none !important;
+      background: rgba(30,30,30,0.98) !important;
+    }
+
+    #autoComplete::placeholder { color: #444 !important; }
+
+    /* AUTOCOMPLETE DROPDOWN - Fixed to appear BELOW */
+    #autoComplete_list {
+      position: absolute !important;
+      top: 100% !important;
+      left: 0 !important;
+      right: 0 !important;
+      width: 100% !important;
+      background: #1a1a1a !important;
+      border: 1px solid rgba(255,255,255,0.1) !important;
+      border-top: none !important;
+      border-radius: 0 0 12px 12px !important;
+      margin-top: 0 !important;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.8) !important;
+      z-index: 9999 !important;
+      max-height: 320px;
+      overflow-y: auto;
+      list-style: none;
+      padding: 6px 0 !important;
+    }
+
+    #autoComplete_list li {
+      color: var(--text) !important;
+      font-family: 'Outfit', sans-serif !important;
+      font-size: 14px !important;
+      font-weight: 400 !important;
+      padding: 11px 20px !important;
+      border-bottom: 1px solid rgba(255,255,255,0.04) !important;
+      cursor: pointer;
+      transition: background .15s;
+      display: flex !important;
+      align-items: center !important;
+      gap: 10px;
+    }
+
+    #autoComplete_list li:before {
+      content: '🎬';
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+
+    #autoComplete_list li:last-child { border-bottom: none !important; }
+
+    #autoComplete_list li:hover,
+    #autoComplete_list li[aria-selected="true"] {
+      background: rgba(229,9,20,0.12) !important;
+    }
+
+    .autoComplete_highlighted { 
+      color: var(--red) !important; 
+      font-weight: 700 !important; 
+    }
+
+    /* Round top when dropdown open */
+    #autoComplete.open {
+      border-bottom-left-radius: 0 !important;
+      border-bottom-right-radius: 0 !important;
+      border-bottom-color: transparent !important;
+    }
+
+    .movie-button {
+      margin-top: 20px;
+      background: linear-gradient(135deg, var(--red), var(--red-dark)) !important;
+      border: none !important;
+      border-radius: 12px !important;
+      width: 170px !important;
+      height: 52px !important;
+      font-size: 14px !important;
+      font-weight: 700 !important;
+      letter-spacing: 0.8px !important;
+      font-family: 'Outfit', sans-serif !important;
+      transition: all .25s !important;
+      box-shadow: 0 4px 20px var(--red-glow) !important;
+    }
+
+    .movie-button:not(:disabled):hover {
+      transform: translateY(-3px) !important;
+      box-shadow: 0 10px 30px var(--red-glow) !important;
+      background: linear-gradient(135deg, #ff1a1a, var(--red)) !important;
+    }
+
+    .movie-button:disabled {
+      background: var(--surface2) !important;
+      color: var(--text-dim) !important;
+      box-shadow: none !important;
+    }
+
+    /* LOADER */
+    #loader .spinner {
+      display: inline-block;
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--surface2);
+      border-top-color: var(--red);
+      border-radius: 50%;
+      animation: spin .65s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* RESULTS */
+    .fail { color: var(--text-muted); padding: 20px; }
+    .results { padding: 10px; }
+    #name {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 36px;
+      letter-spacing: 2px;
+      color: var(--text);
+    }
+
+    /* HISTORY SECTION */
+    .history-section {
+      padding: 10px 48px 80px;
+    }
+
+    .history-table-wrap {
+      background: var(--surface);
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      box-shadow: 0 4px 30px rgba(0,0,0,0.4);
+    }
+
+    table.history-table {
+      width: 100%;
+      border-collapse: collapse;
+      color: var(--text-muted);
+      font-size: 13px;
+      margin: 0;
+    }
+
+    .history-table thead tr {
+      background: var(--surface2);
+    }
+
+    .history-table thead th {
+      padding: 16px 24px;
+      color: var(--text-dim);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      border: none;
+    }
+
+    .history-table tbody tr {
+      border-top: 1px solid var(--border);
+      transition: background .15s;
+      cursor: pointer;
+    }
+
+    .history-table tbody tr:hover {
+      background: rgba(229,9,20,0.05);
+    }
+
+    .history-table tbody td {
+      padding: 14px 24px;
+      border: none;
+      vertical-align: middle;
+    }
+
+    .history-table tbody td:first-child {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .action-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .action-search { background: rgba(52,152,219,0.15); color: #5dade2; }
+    .action-view   { background: rgba(155,89,182,0.15); color: #bb8fce; }
+    .action-rate   { background: rgba(243,156,18,0.15); color: #f7c948; }
+    .action-click  { background: rgba(46,204,113,0.15); color: #58d68d; }
+
+    /* DIVIDER */
+    .section-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 0 48px;
+    }
+
+    /* FOOTER */
+    .footer {
+      text-align: center;
+      padding: 32px;
+      color: var(--text-dim);
+      font-size: 12px;
+      border-top: 1px solid var(--border);
+      letter-spacing: 0.5px;
+    }
+
+    /* FADE IN */
+    .fade-in {
+      animation: fadeInUp .5s ease both;
+    }
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .featured-card { animation: fadeInUp .4s ease both; }
+    .featured-card:nth-child(1) { animation-delay: .04s; }
+    .featured-card:nth-child(2) { animation-delay: .08s; }
+    .featured-card:nth-child(3) { animation-delay: .12s; }
+    .featured-card:nth-child(4) { animation-delay: .16s; }
+    .featured-card:nth-child(5) { animation-delay: .20s; }
+    .featured-card:nth-child(6) { animation-delay: .24s; }
+    .featured-card:nth-child(7) { animation-delay: .28s; }
+    .featured-card:nth-child(8) { animation-delay: .32s; }
+
+    /* SCROLLBAR GLOBAL */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: var(--surface2); }
+    ::-webkit-scrollbar-thumb { background: var(--red); border-radius: 2px; }
+  </style>
+  <script>var films = {{suggestions|tojson}};</script>
 </head>
+<body id="content">
 
-<body id="content" style="font-family: 'Noto Sans JP', sans-serif;">
-
-	<div class="ml-container" style="display: block;">
-		<a href="https://github.com/MrBriit/Netflix-Recommender-System-and-Deployment" target="_blank" class="github-corner" title="View source on GitHub">
-		      <svg data-toggle="tooltip"
-		      data-placement="left" width="80" height="80" viewBox="0 0 250 250"
-			style="fill:#e50914; color:#fff; position: fixed;z-index:100; top: 0; border: 0; right: 0;" aria-hidden="true">
-			<path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path>
-			<path
-			  d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2"
-			  fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path>
-			<path
-			  d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z"
-			  fill="currentColor" class="octo-body"></path>
-		      </svg>
-		    </a>
-    <center><h1 style=""> Netflix Recommender System</h1></center>
-    <div class="form-group shadow-textarea" style="margin-top: 30px;text-align: center;color: white;">
-        <input type="text" name="movie" class="movie form-control" id="autoComplete" autocomplete="off" placeholder="Enter the Movie Name/title" style="background-color: #ffffff;border-color:#ffffff;width: 60%;color: #181818" required="required" />
-        <br>
-    </div>
-
-    <div class="form-group" style="text-align: center;">
-      <button class="btn btn-primary btn-block movie-button" style="background-color: #e50914;text-align: center;border-color: #e50914;width:120px;" disabled="true" >Search</button><br><br>
-    </div>
-	</div>
-
-  <div id="loader" class="text-center">
+<!-- NAVBAR -->
+<div class="navbar-custom">
+  <span class="navbar-brand-txt">NETFLIX</span>
+  <div class="nav-links">
+    <span class="username-badge">👤 {{ username }}</span>
+    <a href="{{ url_for('profile') }}">
+      <i class="fa fa-history" style="margin-right:5px;"></i>Lịch sử
+    </a>
+    <a href="{{ url_for('logout') }}">
+      <i class="fa fa-sign-out" style="margin-right:5px;"></i>Đăng xuất
+    </a>
   </div>
-  
-  <div class="fail">
-    <center><h3>Sorry! try another movie name/title </h3></center>
+</div>
+
+<!-- FEATURED / RECOMMENDED -->
+<div class="fade-in">
+  <div class="section-title">
+    {% if mode == 'cold_start' %}
+      🔥 Phim được đánh giá cao nhất
+      <span class="badge-cold">Mới tham gia</span>
+    {% else %}
+      ⭐ Gợi ý dành riêng cho bạn
+      <span class="badge-personal">Cá nhân hoá</span>
+    {% endif %}
   </div>
+  <div class="featured-row" id="featuredRow">
+    {% for movie in featured_movies %}
+    <div class="featured-card" title="{{ movie }}" onclick="searchMovieCard('{{ movie }}')">
+      <div class="fc-img-wrap">
+        <div class="fc-placeholder" id="poster-{{ loop.index }}">🎬</div>
+        <div class="play-overlay">
+          <div class="play-btn-circle">
+            <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          </div>
+        </div>
+      </div>
+      <div class="fc-title-static">{{ movie|capitalize }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
 
-	<div class="results">
-    <center>
-      <h2 id="name" class="text-uppercase"></h2>
-    </center>
-	</div>
-	
-	<div class="footer" style="">Made with<span style="font-size:150%;color:red;"> &hearts; </span>by Dr Briit</div>
-	
-	<script src="https://cdn.jsdelivr.net/npm/@tarekraafat/autocomplete.js@7.2.0/dist/js/autoComplete.min.js"></script>
-  <script type="text/javascript" src="{{url_for('static', filename='autocomplete.js')}}"></script>
+<div class="section-divider"></div>
 
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-  <script type="text/javascript" src="{{url_for('static', filename='recommend.js')}}"></script>
+<!-- SEARCH SECTION -->
+<div class="search-section fade-in">
+  <div class="search-headline">TÌM KIẾM <span>PHIM</span></div>
+  <p class="search-sub">Khám phá hàng nghìn bộ phim — nhập tên để bắt đầu</p>
+  <div class="search-wrapper">
+    <i class="fa fa-search search-icon-left"></i>
+    <input type="text" name="movie" class="movie form-control" id="autoComplete"
+           autocomplete="off" placeholder="Nhập tên phim..." />
+    <!-- Dropdown sẽ xuất hiện ở đây bên dưới input -->
+  </div>
+  <br>
+  <button class="btn btn-primary movie-button" disabled="true">
+    🔍 Tìm kiếm
+  </button>
+</div>
 
+<div id="loader" class="text-center" style="padding:16px;"></div>
+<div class="fail"><center><h3 style="color:var(--text-muted); font-size:15px; font-weight:400;">Không tìm thấy phim này. Vui lòng thử tên khác.</h3></center></div>
+<div class="results"><center><h2 id="name" class="text-uppercase"></h2></center></div>
+
+<!-- HISTORY SECTION -->
+{% if history %}
+<div class="history-section fade-in">
+  <div class="section-title">🕐 Hoạt động gần đây của bạn</div>
+  <div class="history-table-wrap">
+    <table class="history-table">
+      <thead>
+        <tr>
+          <th>Phim</th>
+          <th>Hành động</th>
+          <th>Thời gian</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in history %}
+        <tr onclick="searchMovieCard('{{ item.movie_title }}')">
+          <td>{{ item.movie_title|capitalize }}</td>
+          <td>
+            {% if item.action == 'search' %}
+              <span class="action-badge action-search">🔍 Tìm kiếm</span>
+            {% elif item.action == 'view' %}
+              <span class="action-badge action-view">👁️ Xem</span>
+            {% elif item.action == 'rate' %}
+              <span class="action-badge action-rate">⭐ Đánh giá</span>
+            {% else %}
+              <span class="action-badge action-click">🖱️ Click</span>
+            {% endif %}
+          </td>
+          <td style="color:var(--text-dim); font-size:12px;">{{ item.timestamp[:16] }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<div class="footer">Made with <span style="color:#e50914; font-size:130%;">♥</span> by Dr Briit</div>
+
+<!-- SCRIPTS -->
+<script src="https://cdn.jsdelivr.net/npm/@tarekraafat/autocomplete.js@7.2.0/dist/js/autoComplete.min.js"></script>
+<script src="{{ url_for('static', filename='autocomplete.js') }}"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<script src="{{ url_for('static', filename='recommend.js') }}"></script>
+
+<script>
+// FIX: Force autocomplete list to render inside search-wrapper (below input)
+document.addEventListener('DOMContentLoaded', function() {
+  var input = document.getElementById('autoComplete');
+  var wrapper = input.closest('.search-wrapper');
+
+  // Observer to catch when autoComplete renders its list and move it into wrapper
+  var observer = new MutationObserver(function(mutations) {
+    mutations.forEach(function(mutation) {
+      mutation.addedNodes.forEach(function(node) {
+        if (node.id === 'autoComplete_list' && node.parentNode !== wrapper) {
+          wrapper.appendChild(node);
+        }
+      });
+    });
+  });
+
+  observer.observe(document.body, { childList: true, subtree: true });
+
+  // Toggle rounded corners when dropdown is open
+  input.addEventListener('focus', function() {
+    setTimeout(function() {
+      var list = document.getElementById('autoComplete_list');
+      if (list) input.classList.add('open');
+    }, 100);
+  });
+
+  document.addEventListener('click', function(e) {
+    if (!wrapper.contains(e.target)) {
+      input.classList.remove('open');
+    }
+  });
+});
+
+// Load posters via TMDB
+var API_KEY = '41bcb5afcae1917d4378fb56e276f313';
+var featuredMovies = {{ featured_movies|tojson }};
+featuredMovies.forEach(function(movie, idx) {
+  $.ajax({
+    type: 'GET',
+    url: 'https://api.themoviedb.org/3/search/movie?api_key='+API_KEY+'&query='+encodeURIComponent(movie),
+    success: function(data) {
+      if (data.results && data.results.length > 0 && data.results[0].poster_path) {
+        var poster = 'https://image.tmdb.org/t/p/w300' + data.results[0].poster_path;
+        var el = document.getElementById('poster-'+(idx+1));
+        if (el) {
+          el.innerHTML = '<img class="fc-poster" src="'+poster+'" alt="'+movie+'" loading="lazy">';
+        }
+      }
+    }
+  });
+});
+
+function searchMovieCard(title) {
+  fetch('/track', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({movie_title: title, action: 'recommend_click'})
+  });
+  document.getElementById('autoComplete').value = title;
+  document.getElementById('autoComplete').classList.remove('open');
+  $('.movie-button').attr('disabled', false);
+  $('.movie-button').trigger('click');
+}
+</script>
 </body>
 </html>

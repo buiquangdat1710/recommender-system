@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Hồ sơ – {{ username }}</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+  <style>
+    :root {
+      --red: #e50914;
+      --red-dark: #b0060f;
+      --red-glow: rgba(229,9,20,0.3);
+      --bg: #0a0a0a;
+      --surface: #141414;
+      --surface2: #1c1c1c;
+      --surface3: #252525;
+      --border: rgba(255,255,255,0.07);
+      --text: #fff;
+      --text-muted: #999;
+      --text-dim: #555;
+      --gold: #f5c518;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 60% 40% at 0% 0%, rgba(229,9,20,0.07) 0%, transparent 55%),
+        radial-gradient(ellipse 50% 50% at 100% 100%, rgba(229,9,20,0.04) 0%, transparent 55%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── NAVBAR ── */
+    nav.nf-nav {
+      position: sticky;
+      top: 0;
+      z-index: 999;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      padding: 0 48px;
+      background: linear-gradient(180deg, rgba(0,0,0,0.97) 0%, rgba(10,10,10,0.8) 100%);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nf-logo {
+      font-family: 'Bebas Neue', sans-serif;
+      color: var(--red);
+      font-size: 26px;
+      letter-spacing: 2px;
+      text-shadow: 0 0 30px var(--red-glow);
+      text-decoration: none;
+      margin-right: auto;
+    }
+
+    .nf-back-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 7px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      transition: all .2s;
+    }
+    .nf-back-btn:hover {
+      color: var(--text);
+      border-color: rgba(255,255,255,0.2);
+      background: var(--surface2);
+      text-decoration: none;
+    }
+
+    /* ── MAIN ── */
+    .page-content {
+      position: relative;
+      z-index: 1;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 52px 40px 80px;
+    }
+
+    /* ── PROFILE HEADER ── */
+    .profile-header {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+      margin-bottom: 44px;
+      padding: 32px 36px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      animation: fadeUp .4s ease both;
+    }
+
+    .avatar-ring {
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .avatar-ring::before {
+      content: '';
+      position: absolute;
+      inset: -3px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--red), var(--red-dark), transparent);
+      z-index: -1;
+    }
+
+    .avatar {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--red), var(--red-dark));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 36px;
+      color: white;
+      box-shadow: 0 4px 20px var(--red-glow);
+    }
+
+    .profile-info h2 {
+      font-size: 26px;
+      font-weight: 800;
+      margin-bottom: 6px;
+      color: var(--text);
+    }
+
+    .profile-stats {
+      display: flex;
+      gap: 20px;
+    }
+
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 8px 20px;
+      background: var(--surface2);
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+    .stat-item .num {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 28px;
+      color: var(--red);
+      line-height: 1;
+    }
+    .stat-item .lbl {
+      font-size: 11px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-top: 2px;
+    }
+
+    /* ── TABS ── */
+    .tab-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 24px;
+      animation: fadeUp .4s .1s ease both;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 9px 24px;
+      border-radius: 24px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      font-family: 'Inter', sans-serif;
+      transition: all .2s;
+    }
+    .tab-btn:hover {
+      border-color: rgba(255,255,255,0.2);
+      color: var(--text);
+      background: var(--surface2);
+    }
+    .tab-btn.active {
+      background: linear-gradient(135deg, var(--red), var(--red-dark));
+      border-color: transparent;
+      color: white;
+      box-shadow: 0 4px 16px var(--red-glow);
+    }
+
+    /* ── TABLE CARD ── */
+    .table-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      animation: fadeUp .4s .15s ease both;
+    }
+
+    table.nf-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    .nf-table thead tr { background: var(--surface2); }
+    .nf-table thead th {
+      padding: 14px 20px;
+      color: var(--text-dim);
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      border: none;
+    }
+    .nf-table tbody tr {
+      border-top: 1px solid var(--border);
+      transition: background .15s;
+    }
+    .nf-table tbody tr:hover { background: var(--surface2); }
+    .nf-table tbody td {
+      padding: 14px 20px;
+      border: none;
+      vertical-align: middle;
+    }
+    .nf-table tbody td:first-child { color: var(--text); font-weight: 600; }
+
+    .action-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .ab-search { background: rgba(52,152,219,0.15); color: #5dade2; border: 1px solid rgba(52,152,219,0.2); }
+    .ab-view   { background: rgba(155,89,182,0.15); color: #bb8fce; border: 1px solid rgba(155,89,182,0.2); }
+    .ab-rate   { background: rgba(243,156,18,0.15); color: #f7c948; border: 1px solid rgba(243,156,18,0.2); }
+    .ab-click  { background: rgba(46,204,113,0.15); color: #58d68d; border: 1px solid rgba(46,204,113,0.2); }
+    .ab-other  { background: var(--surface3); color: var(--text-dim); border: 1px solid var(--border); }
+
+    .timestamp { color: var(--text-dim); font-size: 12px; }
+
+    /* ── STAR RATING ── */
+    .star-bar { display: flex; align-items: center; gap: 8px; }
+    .stars { color: var(--gold); letter-spacing: 1px; font-size: 14px; }
+    .rating-num { font-size: 13px; font-weight: 700; color: var(--gold); }
+    .rating-max { font-size: 11px; color: var(--text-dim); }
+
+    /* ── EMPTY STATE ── */
+    .empty-state { text-align: center; padding: 60px 20px; }
+    .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+    .empty-state h3 { font-size: 18px; font-weight: 600; color: var(--text-muted); margin-bottom: 8px; }
+    .empty-state p { color: var(--text-dim); font-size: 14px; }
+
+    /* ── FOOTER ── */
+    footer.nf-footer {
+      text-align: center;
+      padding: 28px;
+      color: var(--text-dim);
+      font-size: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── ANIMATION ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 640px) {
+      .page-content { padding: 28px 16px 60px; }
+      nav.nf-nav { padding: 0 16px; }
+      .profile-header { flex-direction: column; text-align: center; padding: 24px 20px; }
+      .profile-stats { justify-content: center; }
+    }
+  </style>
+</head>
+<body id="content">
+
+  <!-- ═══ NAVBAR ═══ -->
+  <nav class="nf-nav">
+    <a href="{{ url_for('home') }}" class="nf-logo">🎬 Netflix Recommender</a>
+    <a href="{{ url_for('home') }}" class="nf-back-btn">
+      <i class="fa fa-arrow-left"></i> Trang chủ
+    </a>
+  </nav>
+
+  <div class="page-content">
+
+    <!-- PROFILE HEADER -->
+    <div class="profile-header">
+      <div class="avatar-ring">
+        <div class="avatar">{{ username[0]|upper }}</div>
+      </div>
+      <div class="profile-info">
+        <h2>{{ username }}</h2>
+        <div class="profile-stats">
+          <div class="stat-item">
+            <span class="num">{{ history|length }}</span>
+            <span class="lbl">Hoạt động</span>
+          </div>
+          <div class="stat-item">
+            <span class="num">{{ ratings|length }}</span>
+            <span class="lbl">Đánh giá</span>
+          </div>
+          <div class="stat-item">
+            <span class="num">{{ watch_total_minutes }}</span>
+            <span class="lbl">Phút xem</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TABS -->
+    <div class="tab-row">
+      <button class="tab-btn active" onclick="showTab('history', this)">🕐 Lịch sử xem</button>
+      <button class="tab-btn"        onclick="showTab('ratings', this)">⭐ Đánh giá của tôi</button>
+      <button class="tab-btn"        onclick="showTab('rl', this)">🤖 Hành vi & RL</button>
+    </div>
+
+    <!-- HISTORY TAB -->
+    <div id="tab-history">
+      <div class="table-card">
+        {% if history %}
+        <table class="nf-table">
+          <thead>
+            <tr>
+              <th>Phim</th>
+              <th>Hành động</th>
+              <th>Thời gian</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in history %}
+            <tr>
+              <td>{{ item.movie_title|capitalize }}</td>
+              <td>
+                {% if item.action == 'search' %}
+                  <span class="action-badge ab-search">🔍 Tìm kiếm</span>
+                {% elif item.action == 'view' %}
+                  <span class="action-badge ab-view">👁️ Xem chi tiết</span>
+                {% elif item.action == 'rate' %}
+                  <span class="action-badge ab-rate">⭐ Đánh giá</span>
+                {% elif item.action == 'recommend_click' %}
+                  <span class="action-badge ab-click">🖱️ Click gợi ý</span>
+                {% else %}
+                  <span class="action-badge ab-other">{{ item.action }}</span>
+                {% endif %}
+              </td>
+              <td class="timestamp">{{ item.timestamp[:16] }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+          <div class="icon">🎬</div>
+          <h3>Chưa có lịch sử xem</h3>
+          <p>Hãy tìm kiếm và khám phá những bộ phim thú vị!</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- RATINGS TAB -->
+    <div id="tab-ratings" style="display:none;">
+      <div class="table-card">
+        {% if ratings %}
+        <table class="nf-table">
+          <thead>
+            <tr>
+              <th>Phim</th>
+              <th>Điểm của bạn</th>
+              <th>Thời gian</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in ratings %}
+            <tr>
+              <td>{{ item.movie_title|capitalize }}</td>
+              <td>
+                <div class="star-bar">
+                  <span class="stars">
+                    {% for i in range(item.rating|int) %}★{% endfor %}{% for i in range(10 - item.rating|int) %}☆{% endfor %}
+                  </span>
+                  <span class="rating-num">{{ item.rating }}</span>
+                  <span class="rating-max">/10</span>
+                </div>
+              </td>
+              <td class="timestamp">{{ item.timestamp[:16] }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+          <div class="icon">⭐</div>
+          <h3>Chưa có đánh giá nào</h3>
+          <p>Xem phim và để lại đánh giá của bạn!</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+
+    <!-- RL STATS TAB -->
+    <div id="tab-rl" style="display:none;">
+      <div class="table-card" style="margin-bottom:20px; padding: 24px 28px;">
+        <h3 style="font-size:15px; font-weight:700; margin-bottom:16px; color:var(--text);">
+          🤖 Reward tích lũy theo hành động
+        </h3>
+        <p style="font-size:12px; color:var(--text-dim); margin-bottom:20px; line-height:1.6;">
+          Mỗi hành động của bạn tạo ra một reward signal giúp hệ thống RL học cách gợi ý phim tốt hơn.<br>
+          Reward dương (+) = hệ thống học theo. Reward âm (−) = hệ thống tránh lặp lại.
+        </p>
+        {% if rl_stats %}
+        <table class="nf-table">
+          <thead>
+            <tr>
+              <th>Hành động</th>
+              <th>Số lần</th>
+              <th>Tổng Reward</th>
+              <th>Reward TB</th>
+              <th>Ý nghĩa</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in rl_stats %}
+            <tr>
+              <td>
+                {% if s.action == 'watch_end' %}<span class="action-badge ab-view">▶ Xem xong</span>
+                {% elif s.action == 'rewatch' %}<span class="action-badge" style="background:rgba(229,9,20,0.15);color:#ff6b6b;border:1px solid rgba(229,9,20,0.3);">🔁 Xem lại</span>
+                {% elif s.action == 'rate' %}<span class="action-badge ab-rate">⭐ Đánh giá</span>
+                {% elif s.action == 'rec_converted' %}<span class="action-badge ab-click">✅ Click gợi ý</span>
+                {% elif s.action == 'quick_exit' %}<span class="action-badge ab-other">⚡ Thoát nhanh</span>
+                {% elif s.action == 'watchlist_add' %}<span class="action-badge" style="background:rgba(39,174,96,0.15);color:#58d68d;border:1px solid rgba(39,174,96,0.3);">＋ Watchlist</span>
+                {% else %}<span class="action-badge ab-other">{{ s.action }}</span>
+                {% endif %}
+              </td>
+              <td style="color:var(--text);">{{ s.count }}</td>
+              <td style="color:{% if s.total_reward > 0 %}#58d68d{% elif s.total_reward < 0 %}#ff6b6b{% else %}var(--text-muted){% endif %}; font-weight:700;">
+                {% if s.total_reward > 0 %}+{% endif %}{{ "%.1f"|format(s.total_reward) }}
+              </td>
+              <td style="color:var(--text-muted);">
+                {% if s.avg_reward > 0 %}+{% endif %}{{ "%.2f"|format(s.avg_reward) }}
+              </td>
+              <td style="color:var(--text-dim); font-size:12px;">
+                {% if s.action == 'rewatch' %}Phim yêu thích
+                {% elif s.action == 'rec_converted' %}Gợi ý hiệu quả
+                {% elif s.action == 'quick_exit' %}Click nhầm
+                {% elif s.action == 'watch_end' %}Mức độ hoàn thành
+                {% elif s.action == 'rate' %}Phản hồi chủ động
+                {% elif s.action == 'watchlist_add' %}Ý định xem
+                {% else %}Tín hiệu yếu{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+          <div class="icon">🤖</div>
+          <h3>Chưa có dữ liệu RL</h3>
+          <p>Hãy xem, đánh giá và tương tác với phim để hệ thống học!</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div><!-- /page-content -->
+
+  <footer class="nf-footer">Made with <span style="color:#e50914; font-size:130%;">♥</span> by Dr Briit</footer>
+
+  <script>
+  function showTab(name, btn) {
+    document.getElementById('tab-history').style.display = 'none';
+    document.getElementById('tab-ratings').style.display = 'none';
+    var rl = document.getElementById('tab-rl');
+    if (rl) rl.style.display = 'none';
+    document.getElementById('tab-' + name).style.display = 'block';
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+  </script>
+</body>
+</html>
