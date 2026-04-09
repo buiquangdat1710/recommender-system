@@ -17,6 +17,7 @@ from datetime import datetime
 from functools import wraps
 import random
 import threading
+from icecream import ic 
 
 # ─────────────────────────────────────────────
 #  App Setup
@@ -29,7 +30,7 @@ DB_PATH = 'users.db'
 # ─────────────────────────────────────────────
 #  Online RL Agent Import
 # ─────────────────────────────────────────────
-from online_rl import OnlineDQN
+from online_rl import DQNAgent
 
 # ─────────────────────────────────────────────
 #  Database
@@ -357,34 +358,60 @@ user_states = {}              # user_id -> (state_vector, last_update)
 user_states_lock = threading.Lock()
 
 def init_rl_agent():
-    global rl_agent, rl_movie_features_dict, rl_movie_titles, rl_genre_list
-    data, _ = get_cb_data()  # ensures data loaded
+    global rl_agent, rl_movie_titles, rl_genre_list, movie_to_idx
 
-    # Build genre list from 'genres' column (comma separated)
+    data, _ = get_cb_data()
+
+    # =========================
+    # 1. Build genre list
+    # =========================
     all_genres = set()
     for g in data['genres'].dropna():
         for genre in g.split(','):
             all_genres.add(genre.strip())
+
     rl_genre_list = sorted(all_genres)
 
-    # Build movie features dict
-    for idx, row in data.iterrows():
-        title = row['movie_title'].lower()
-        genres = row['genres'] if pd.notna(row['genres']) else ''
-        vec = np.zeros(len(rl_genre_list), dtype=np.float32)
-        for g in genres.split(','):
-            g = g.strip()
-            if g in rl_genre_list:
-                vec[rl_genre_list.index(g)] = 1.0
-        rl_movie_features_dict[title] = vec
+    print(f"Initializing RL agent with {len(data)} movies and {len(rl_genre_list)} genres")
 
-    rl_movie_titles = list(rl_movie_features_dict.keys())
-    rl_movie_features = np.array([rl_movie_features_dict[t] for t in rl_movie_titles], dtype=np.float32)
-    action_dim = rl_movie_features.shape[1]
-    state_dim = len(rl_genre_list) + 3  # genre_pref + total_reward + count + avg_watch
+    # =========================
+    # 2. Movie titles
+    # =========================
+    rl_movie_titles = [row['movie_title'].lower() for _, row in data.iterrows()]
 
-    rl_agent = OnlineDQN(state_dim, action_dim, rl_movie_titles, rl_movie_features, device='cpu')
-    print("Online RL agent initialized.")
+    # 🔥 mapping cực quan trọng
+    movie_to_idx = {title: i for i, title in enumerate(rl_movie_titles)}
+    ic(len(movie_to_idx), list(movie_to_idx.keys())[:5])
+
+    # =========================
+    # 3. State dim
+    # =========================
+    state_dim = len(rl_genre_list) + 3
+    num_actions = len(rl_movie_titles)
+
+    print(f"State dim: {state_dim}, Num actions: {num_actions}")
+
+    # =========================
+    # 4. Init agent (NEW)
+    # =========================
+    # state_dim = 1255
+    # movie
+    rl_agent = DQNAgent(
+        state_dim=state_dim,
+        movie_titles=rl_movie_titles,
+        device='cuda'
+    )
+    checkpoint_path = 'rl_checkpoint.pt'
+    if os.path.exists(checkpoint_path):
+        success = rl_agent.load_checkpoint(checkpoint_path)
+        if success:
+            print("✅ Loaded RL agent from checkpoint")
+        else:
+            print("⚠️ Checkpoint incompatible, starting fresh")
+    else:
+        print("🆕 No checkpoint found, initializing new RL agent")
+
+    print("Dueling Double DQN agent initialized.")
 
 def get_user_state(user_id):
     """Retrieve current state vector for user from cache or build from DB."""
@@ -450,7 +477,7 @@ def build_state_from_db(user_id):
         movie = r['movie_title'].lower()
         reward = r['reward_value'] if r['reward_value'] else 0.0
         if reward > 0 and movie in rl_movie_features_dict:
-            genre_vec = rl_movie_features_dict[movie]
+            genre_vec = rl_movie_features_dict[movie] # multione-hot vector
             total_reward += reward
             genre_pref += genre_vec * reward
         if r['watch_percent']:
@@ -465,18 +492,29 @@ def build_state_from_db(user_id):
 def rl_recommend_online(user_id, n=12):
     if rl_agent is None:
         return []
+
     state = get_user_state(user_id)
-    # Get already watched movies to exclude
+
+    # lấy movie đã xem
     conn = get_db()
     watched = conn.execute(
         "SELECT DISTINCT movie_title FROM user_interactions WHERE user_id=?", (user_id,)
     ).fetchall()
     conn.close()
-    exclude = [r['movie_title'].lower() for r in watched]
-    recs = rl_agent.recommend(state, n=n, exclude=exclude)
-    print("State for user {}: {}".format(user_id, state))
-    print("Excluding movies: {}".format(exclude))
-    print("RL recommended movies: {}".format(recs))
+
+    exclude = []
+    for r in watched:
+        title = r['movie_title'].lower()
+        if title in movie_to_idx:
+            exclude.append(movie_to_idx[title])
+
+    recs = rl_agent.recommend(state, top_k=n, exclude=exclude)
+    
+
+    print(f"State dim: {len(state)}")
+    print(f"Exclude idx: {exclude[:5]}...")
+    print(f"RL recs: {recs}")
+
     return recs
 
 # ─────────────────────────────────────────────
@@ -594,20 +632,26 @@ def home():
         (user_id,)).fetchone()[0]
     conn.close()
 
-    if rl_agent is not None and interaction_count >= 3:
+    if rl_agent is not None and interaction_count >= 5:
+        # RL 
+        print("Using RL for recommendations")
         featured_movies = rl_recommend_online(user_id, n=12)
         if not featured_movies:
             featured_movies = get_top_rated_movies(10)
         mode = 'rl_personalised'
     else:
+        # no RL
+        print("Using non-RL recommendations")
         if interaction_count < 5:
             featured_movies = get_top_rated_movies(10)
             mode = 'cold_start'
+            print("cold start with top-rated movies")
         else:
             featured_movies = cf_recommend(user_id, n=12)
             if not featured_movies:
                 featured_movies = get_top_rated_movies(10)
             mode = 'personalised'
+            print("collaborative filtering based on user interactions")
 
     history = get_user_history(user_id, limit=10)
     return render_template('home.html',
@@ -617,33 +661,55 @@ def home():
                            mode=mode,
                            history=history)
 
+
 @app.route("/similarity", methods=["POST"])
 @login_required
 def similarity():
     movie = request.form['name']
     log_interaction(session['user_id'], movie, 'search')
+
     reward = compute_reward('search')
     log_reward(session['user_id'], movie, 'search', reward)
 
-    # RL update (optional)
+    # =========================
+    # 🔥 RL UPDATE (NEW)
+    # =========================
     if rl_agent is not None:
         current_state = get_user_state(session['user_id'])
+
+        # update state sau khi user xem phim
         update_user_state(session['user_id'], movie, reward)
         next_state = get_user_state(session['user_id'])
-        if movie.lower() in rl_movie_features_dict:
-            action_feat = rl_movie_features_dict[movie.lower()]
-            rl_agent.store_transition(current_state, action_feat, reward, next_state, False)
-            rl_agent.update()  # online update
 
+        movie_key = movie.lower()
+
+        if movie_key in movie_to_idx:
+            action = movie_to_idx[movie_key]  # 🔥 dùng index thay vì feature
+
+            rl_agent.store(
+                current_state,
+                action,
+                reward,
+                next_state,
+                False
+            )
+
+            rl_agent.update()  # online learning
+
+    # =========================
+    # phần còn lại giữ nguyên
+    # =========================
     data, sim = get_cb_data()
     m = movie.lower()
+
     if m not in data['movie_title'].unique():
         return 'Sorry! try another movie name'
 
     conn = get_db()
-    cnt  = conn.execute(
+    cnt = conn.execute(
         "SELECT COUNT(*) FROM user_interactions WHERE user_id=?",
-        (session['user_id'],)).fetchone()[0]
+        (session['user_id'],)
+    ).fetchone()[0]
     conn.close()
 
     if cnt >= 5:
@@ -653,6 +719,7 @@ def similarity():
 
     if not recs:
         return 'Sorry! try another movie name'
+
     return "---".join(recs)
 
 @app.route("/recommend", methods=["POST"])
@@ -679,11 +746,12 @@ def recommend():
     rec_posters  = request.form['rec_posters']
     from_rec     = int(request.form.get('from_rec', 0))
     rec_position = request.form.get('rec_position', None)
-
+    ic(title, from_rec, rec_position)
     user_id = session['user_id']
     is_rewatch = has_watched_before(user_id, title)
+    ic(is_rewatch)
 
-    # Log view interaction
+    # Ghi hành động view vào log và tính reward
     log_interaction(user_id, title, 'view',
                     from_rec=from_rec,
                     rec_position=int(rec_position) if rec_position else None)
@@ -691,6 +759,7 @@ def recommend():
                context={'from_rec': from_rec, 'genres': genres})
 
     if is_rewatch:
+        # Nếu xem lại một phim đã xem trước đó, ghi log và reward cho hành động rewatch
         log_interaction(user_id, title, 'rewatch', from_rec=from_rec)
         log_reward(user_id, title, 'rewatch', compute_reward('rewatch'),
                    context={'from_rec': from_rec})
@@ -720,22 +789,41 @@ def recommend():
                                     cast_bdays[i], cast_places[i], cast_bios[i]]
                     for i in range(len(cast_places))}
 
-    reviews_list   = []
+    reviews_list = []
     reviews_status = []
     try:
-        sauce = urllib.request.urlopen(
-            'https://www.imdb.com/title/{}/reviews?ref_=tt_ov_rt'.format(imdb_id)).read()
+        # Thêm User-Agent để tránh bị chặn
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+        req = urllib.request.Request(f'https://www.imdb.com/title/{imdb_id}/reviews?ref_=tt_ov_rt', headers=headers)
+        sauce = urllib.request.urlopen(req, timeout=10).read()
         soup = bs.BeautifulSoup(sauce, 'lxml')
-        for tag in soup.find_all("div", {"class": "text show-more__control"}):
-            if tag.string and NLP_READY:
-                reviews_list.append(tag.string)
-                vec  = vectorizer_nlp.transform(np.array([tag.string]))
-                pred = clf.predict(vec)
-                reviews_status.append('Good' if pred else 'Bad')
-    except Exception:
+        
+        # Thử nhiều selector khác nhau (cập nhật theo cấu trúc mới của IMDb)
+        review_divs = soup.find_all("div", class_="text show-more__control")  # selector cũ
+        if not review_divs:
+            review_divs = soup.find_all("div", class_="ipc-html-content-inner-div")  # selector mới
+        if not review_divs:
+            review_divs = soup.select(".review-text")  # selector khác
+        if not review_divs:
+            review_divs = soup.find_all("div", {"data-testid": "review-content"})
+            
+        for tag in review_divs:
+            review_text = tag.get_text(strip=True)
+            if review_text:
+                reviews_list.append(review_text)
+                # Nếu có NLP thì phân tích cảm xúc, nếu không thì gán mặc định
+                if NLP_READY:
+                    vec = vectorizer_nlp.transform(np.array([review_text]))
+                    pred = clf.predict(vec)
+                    reviews_status.append('Good' if pred else 'Bad')
+                else:
+                    reviews_status.append('No analysis')  # hoặc bỏ qua
+    except Exception as e:
+        print(f"Lỗi khi crawl review IMDb: {e}")  # Ghi log lỗi để debug
         pass
 
     movie_reviews = {reviews_list[i]: reviews_status[i] for i in range(len(reviews_list))}
+    ic(movie_reviews)
 
     conn = get_db()
     existing_rating = conn.execute(
